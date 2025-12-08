@@ -1,5 +1,8 @@
 package com.welcomeuniversity.provas.config;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,9 +30,40 @@ public class DataLoader {
                            ExamRepository examRepo) {
         return args -> {
 
+            List<State> states = Arrays.asList(
+                new State("AC", "Acre"),
+                new State("AL", "Alagoas"),
+                new State("AP", "Amapá"),
+                new State("AM", "Amazonas"),
+                new State("BA", "Bahia"),
+                new State("CE", "Ceará"),
+                new State("DF", "Distrito Federal"),
+                new State("ES", "Espírito Santo"),
+                new State("GO", "Goiás"),
+                new State("MA", "Maranhão"),
+                new State("MT", "Mato Grosso"),
+                new State("MS", "Mato Grosso do Sul"),
+                new State("MG", "Minas Gerais"),
+                new State("PA", "Pará"),
+                new State("PB", "Paraíba"),
+                new State("PR", "Paraná"),
+                new State("PE", "Pernambuco"),
+                new State("PI", "Piauí"),
+                new State("RJ", "Rio de Janeiro"),
+                new State("RN", "Rio Grande do Norte"),
+                new State("RS", "Rio Grande do Sul"),
+                new State("RO", "Rondônia"),
+                new State("RR", "Roraima"),
+                new State("SC", "Santa Catarina"),
+                new State("SP", "São Paulo"),
+                new State("SE", "Sergipe"),
+                new State("TO", "Tocantins")
+            );
 
-            State ma = stateRepo.save(new State("MA", "Maranhão"));
-            State sp = stateRepo.save(new State("SP", "São Paulo"));
+            stateRepo.saveAll(states);
+
+            State ma = states.stream().filter(s -> s.getCode().equals("MA")).findFirst().get();
+            State sp = states.stream().filter(s -> s.getCode().equals("SP")).findFirst().get();
 
             University ufma = uniRepo.save(new University("UFMA", ma));
             University usp = uniRepo.save(new University("USP", sp));
