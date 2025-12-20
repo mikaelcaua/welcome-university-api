@@ -22,7 +22,7 @@
 # Maven target directory
 target/
 
-resources/
+src/main/resources/application.properties
 
 # Eclipse
 .classpath
@@ -53,5 +53,4 @@ Thumbs.db
 # Environment files
 .env
 .env.*
-src/main/resources/application.properties
-target/classes/application.properties
+
