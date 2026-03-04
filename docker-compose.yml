@@ -27,7 +27,7 @@ services:
       resources:
         limits:
           cpus: '4.0'
-          memory: 4G 
+          memory: 4G
         reservations:
           memory: 512M
     read_only: true
@@ -102,6 +102,7 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_LABEL_ENABLE=true
       - WATCHTOWER_POLL_INTERVAL=300
+      - DOCKER_API_VERSION=1.44
     networks:
       - backend
 
