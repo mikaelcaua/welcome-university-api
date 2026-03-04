@@ -2,38 +2,63 @@ package com.welcomeuniversity.provas.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.welcomeuniversity.provas.model.Exam;
-import com.welcomeuniversity.provas.repository.ExamRepository;
+import com.welcomeuniversity.provas.dto.exam.ExamResponse;
+import com.welcomeuniversity.provas.dto.exam.ExamReviewRequest;
+import com.welcomeuniversity.provas.dto.exam.ExamUploadRequest;
+import com.welcomeuniversity.provas.service.ExamService;
+
+import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/subjects/{subjectId}/exams")
 public class ExamController {
 
-    private final ExamRepository repo;
+    private final ExamService examService;
 
-    public ExamController(ExamRepository repo){ 
-        this.repo = repo; 
+    public ExamController(ExamService examService) {
+        this.examService = examService;
     }
 
-    @GetMapping
-    public List<Exam> listAll(
-        @PathVariable Long subjectId, 
+    @GetMapping("/subjects/{subjectId}/exams")
+    public List<ExamResponse> listBySubject(
+        @PathVariable Long subjectId,
         @RequestParam(required = false) String period
     ) {
-        if (period == null || period.isBlank()) {
-            return repo.findBySubjectId(subjectId);
-        }
+        return examService.listApproved(subjectId, period);
+    }
 
-        String[] parts = period.split("\\.");
-        int examYear = Integer.parseInt(parts[0]);
-        int semester = Integer.parseInt(parts[1]);
+    @GetMapping("/exams")
+    public List<ExamResponse> listAll(
+        @RequestParam(required = false) Long subjectId,
+        @RequestParam(required = false) String period
+    ) {
+        return examService.listApproved(subjectId, period);
+    }
 
-        return repo.findBySubjectIdAndExamYearAndSemester(subjectId, examYear, semester);
+    @GetMapping("/exams/pending")
+    public List<ExamResponse> listPending() {
+        return examService.listPending();
+    }
+
+    @PostMapping(value = "/exams", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public ExamResponse upload(@Valid @ModelAttribute ExamUploadRequest request) {
+        return examService.upload(request);
+    }
+
+    @PatchMapping("/exams/{examId}/status")
+    public ExamResponse review(@PathVariable Long examId, @Valid @RequestBody ExamReviewRequest request) {
+        return examService.review(examId, request);
     }
 }

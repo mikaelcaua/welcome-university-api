@@ -1,5 +1,7 @@
 package com.welcomeuniversity.provas.model;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,6 +10,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 
 @Entity
 public class Exam {
@@ -23,13 +27,34 @@ public class Exam {
 
     private int semester;
 
+    @Column(nullable = false)
     private String pdfUrl;
+
+    private String storageKey;
 
     @Enumerated(EnumType.STRING)
     private ExamType type;
 
+    @Enumerated(EnumType.STRING)
+    private ExamStatus status;
+
     @ManyToOne
     private Subject subject;
+
+    @ManyToOne
+    private AppUser uploadedBy;
+
+    @ManyToOne
+    private AppUser reviewedBy;
+
+    private String reviewNote;
+
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    private Instant reviewedAt;
+
+    private Instant updatedAt;
 
     public Exam() {}
 
@@ -47,6 +72,19 @@ public class Exam {
         this.type = type;
         this.pdfUrl = pdfUrl;
         this.subject = subject;
+        this.status = ExamStatus.APPROVED;
+    }
+
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
     }
 
     public Long getId() {
@@ -81,6 +119,13 @@ public class Exam {
         this.pdfUrl = pdfUrl;
     }
 
+    public String getStorageKey() {
+        return storageKey;
+    }
+    public void setStorageKey(String storageKey) {
+        this.storageKey = storageKey;
+    }
+
     public ExamType getType() {
         return type;
     }
@@ -88,10 +133,59 @@ public class Exam {
         this.type = type;
     }
 
+    public ExamStatus getStatus() {
+        return status;
+    }
+    public void setStatus(ExamStatus status) {
+        this.status = status;
+    }
+
     public Subject getSubject() {
         return subject;
     }
     public void setSubject(Subject subject) {
         this.subject = subject;
+    }
+
+    public AppUser getUploadedBy() {
+        return uploadedBy;
+    }
+    public void setUploadedBy(AppUser uploadedBy) {
+        this.uploadedBy = uploadedBy;
+    }
+
+    public AppUser getReviewedBy() {
+        return reviewedBy;
+    }
+    public void setReviewedBy(AppUser reviewedBy) {
+        this.reviewedBy = reviewedBy;
+    }
+
+    public String getReviewNote() {
+        return reviewNote;
+    }
+    public void setReviewNote(String reviewNote) {
+        this.reviewNote = reviewNote;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getReviewedAt() {
+        return reviewedAt;
+    }
+    public void setReviewedAt(Instant reviewedAt) {
+        this.reviewedAt = reviewedAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }
