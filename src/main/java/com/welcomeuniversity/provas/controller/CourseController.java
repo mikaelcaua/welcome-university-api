@@ -40,7 +40,11 @@ public class CourseController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Criar curso por universidade", security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME))
+    @Operation(
+        summary = "Criar curso por universidade",
+        description = "Disponivel apenas para perfis ADMIN ou DEV. Retorna 404 se a universidade nao existir e 409 em duplicidade.",
+        security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME)
+    )
     public Course create(@PathVariable Long universityId, @Valid @RequestBody CreateCourseRequest request) {
         University university = universityRepository.findById(universityId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Universidade nao encontrada."));

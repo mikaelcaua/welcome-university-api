@@ -40,7 +40,11 @@ public class UniversityController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Criar universidade por estado", security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME))
+    @Operation(
+        summary = "Criar universidade por estado",
+        description = "Disponivel apenas para perfis ADMIN ou DEV. Retorna 404 se o estado nao existir e 409 em duplicidade.",
+        security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME)
+    )
     public University create(@PathVariable Long stateId, @Valid @RequestBody CreateUniversityRequest request) {
         State state = stateRepository.findById(stateId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Estado nao encontrado."));

@@ -47,7 +47,11 @@ public class StateController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Criar estado", security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME))
+    @Operation(
+        summary = "Criar estado",
+        description = "Disponivel apenas para perfis ADMIN ou DEV. Retorna 409 quando a sigla ja existe.",
+        security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME)
+    )
     public State create(@Valid @RequestBody CreateStateRequest request) {
         String normalizedCode = request.code().trim().toUpperCase(Locale.ROOT);
         if (repo.findByCode(normalizedCode).isPresent()) {

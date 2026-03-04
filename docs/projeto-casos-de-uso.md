@@ -125,6 +125,7 @@ Perfis `ADMIN` e `DEV` podem:
 
 - Endpoints de documentacao Swagger sao publicos.
 - Rotas de consulta da arvore academica e de provas aprovadas sao publicas.
+- Criacao de estado, universidade e curso exige perfil `ADMIN` ou `DEV`.
 - Upload de prova exige autenticacao.
 - Revisao de prova exige perfil `APPROVER`, `ADMIN` ou `DEV`.
 - Consulta de usuarios exige `ADMIN` ou `DEV`.
@@ -180,6 +181,9 @@ Perfis `ADMIN` e `DEV` podem:
 
 - `GET /users`
 - `PATCH /users/{id}/role`
+- `POST /states`
+- `POST /states/{stateId}/universities`
+- `POST /universities/{universityId}/courses`
 
 ## Payloads e DTOs por rota
 
@@ -317,6 +321,28 @@ Response `200`:
 
 Retorno: `State`
 
+### `POST /states`
+
+Autenticacao: Bearer token com perfil `ADMIN` ou `DEV`
+
+Request body:
+
+```json
+{
+  "code": "MA",
+  "name": "Maranhao"
+}
+```
+
+DTO de entrada: `CreateStateRequest`
+
+- `code: string` obrigatorio, 2 caracteres
+- `name: string` obrigatorio
+
+Response `201`:
+
+Mesmo payload de `State`.
+
 ### `GET /states/{stateId}/universities`
 
 Autenticacao: publica
@@ -349,6 +375,30 @@ Retorno: `List<University>`
 - `name: string`
 - `state: State`
 
+### `POST /states/{stateId}/universities`
+
+Autenticacao: Bearer token com perfil `ADMIN` ou `DEV`
+
+Path params:
+
+- `stateId: long`
+
+Request body:
+
+```json
+{
+  "name": "UFMA"
+}
+```
+
+DTO de entrada: `CreateUniversityRequest`
+
+- `name: string` obrigatorio
+
+Response `201`:
+
+Mesmo payload de `University`.
+
 ### `GET /universities/{universityId}/courses`
 
 Autenticacao: publica
@@ -379,6 +429,30 @@ Retorno: `List<Course>`
 - `id: long`
 - `name: string`
 - `university: University`
+
+### `POST /universities/{universityId}/courses`
+
+Autenticacao: Bearer token com perfil `ADMIN` ou `DEV`
+
+Path params:
+
+- `universityId: long`
+
+Request body:
+
+```json
+{
+  "name": "Ciencia da Computacao"
+}
+```
+
+DTO de entrada: `CreateCourseRequest`
+
+- `name: string` obrigatorio
+
+Response `201`:
+
+Mesmo payload de `Course`.
 
 ### `GET /courses/{courseId}/subjects`
 
