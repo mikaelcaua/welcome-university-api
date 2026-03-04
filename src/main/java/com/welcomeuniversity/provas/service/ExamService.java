@@ -2,6 +2,8 @@ package com.welcomeuniversity.provas.service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,14 @@ import com.welcomeuniversity.provas.repository.SubjectRepository;
 public class ExamService {
 
     private static final int MAX_PENDING_EXAMS_FOR_USER = 5;
+    private static final Set<String> SUPPORTED_FILE_EXTENSIONS = Set.of(
+        "pdf",
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif"
+    );
 
     private final ExamRepository examRepository;
     private final SubjectRepository subjectRepository;
@@ -83,7 +93,7 @@ public class ExamService {
     @Transactional
     public ExamResponse upload(ExamUploadRequest request) {
         MultipartFile file = request.getFile();
-        validatePdf(file);
+        validateSupportedFile(file);
 
         AppUser currentUser = currentUserService.requireCurrentUser();
         if (currentUser.getRole() == Role.USER) {
@@ -102,7 +112,7 @@ public class ExamService {
         S3Service.StoredObject storedObject = s3Service.uploadExam(file, subject.getId());
 
         Exam exam = new Exam();
-        exam.setName(request.getName().trim());
+        exam.setName(buildExamName(subject, request));
         exam.setExamYear(request.getExamYear());
         exam.setSemester(request.getSemester());
         exam.setType(request.getType());
@@ -155,18 +165,45 @@ public class ExamService {
         }
     }
 
-    private void validatePdf(MultipartFile file) {
+    private void validateSupportedFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Arquivo PDF obrigatorio.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Arquivo obrigatorio.");
         }
 
-        String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
-        boolean validPdf = filename.endsWith(".pdf") || "application/pdf".equals(contentType);
+        String extension = extractFileExtension(filename);
+        boolean validFile = "application/pdf".equals(contentType)
+            || contentType.startsWith("image/")
+            || SUPPORTED_FILE_EXTENSIONS.contains(extension);
 
-        if (!validPdf) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Somente arquivos PDF sao aceitos.");
+        if (!validFile) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Somente arquivos PDF ou imagens sao aceitos."
+            );
         }
+    }
+
+    private String buildExamName(Subject subject, ExamUploadRequest request) {
+        return "%s - %d.%d - %s".formatted(
+            subject.getName().trim(),
+            request.getExamYear(),
+            request.getSemester(),
+            formatExamType(request.getType().name())
+        );
+    }
+
+    private String formatExamType(String type) {
+        return type.replace('_', ' ').toUpperCase(Locale.ROOT);
+    }
+
+    private String extractFileExtension(String filename) {
+        int extensionStart = filename.lastIndexOf('.');
+        if (extensionStart < 0 || extensionStart == filename.length() - 1) {
+            return "";
+        }
+        return filename.substring(extensionStart + 1);
     }
 
     private String normalizeOptionalText(String input) {

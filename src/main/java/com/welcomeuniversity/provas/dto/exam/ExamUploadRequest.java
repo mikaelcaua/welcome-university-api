@@ -6,13 +6,9 @@ import com.welcomeuniversity.provas.model.ExamType;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class ExamUploadRequest {
-
-    @NotBlank
-    private String name;
 
     @NotNull
     @Min(2000)
@@ -31,14 +27,6 @@ public class ExamUploadRequest {
 
     @NotNull
     private MultipartFile file;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
 
     public Integer getExamYear() {
         return examYear;

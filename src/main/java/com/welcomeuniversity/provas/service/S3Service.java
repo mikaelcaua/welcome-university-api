@@ -1,6 +1,7 @@
 package com.welcomeuniversity.provas.service;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
@@ -47,16 +48,17 @@ public class S3Service {
     }
 
     public StoredObject uploadExam(MultipartFile file, Long subjectId) {
-        String originalFilename = file.getOriginalFilename() == null ? "exam.pdf" : file.getOriginalFilename();
+        String originalFilename = file.getOriginalFilename() == null ? "exam" : file.getOriginalFilename();
         String sanitizedFilename = originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
         String objectKey = "subjects/%d/%s-%s".formatted(subjectId, UUID.randomUUID(), sanitizedFilename);
+        String contentType = resolveContentType(file, sanitizedFilename);
 
         try {
             s3Client.putObject(
                 PutObjectRequest.builder()
                     .bucket(properties.bucketName())
                     .key(objectKey)
-                    .contentType("application/pdf")
+                    .contentType(contentType)
                     .build(),
                 RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
@@ -78,6 +80,31 @@ public class S3Service {
             ? properties.endpoint().substring(0, properties.endpoint().length() - 1)
             : properties.endpoint();
         return "%s/%s/%s".formatted(baseEndpoint, properties.bucketName(), objectKey);
+    }
+
+    private String resolveContentType(MultipartFile file, String filename) {
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.isBlank()) {
+            return contentType;
+        }
+
+        String lowerFilename = filename.toLowerCase(Locale.ROOT);
+        if (lowerFilename.endsWith(".pdf")) {
+            return "application/pdf";
+        }
+        if (lowerFilename.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lowerFilename.endsWith(".webp")) {
+            return "image/webp";
+        }
+        if (lowerFilename.endsWith(".gif")) {
+            return "image/gif";
+        }
+        return "application/octet-stream";
     }
 
     public record StoredObject(String key, String url) {
