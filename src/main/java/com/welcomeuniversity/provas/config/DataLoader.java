@@ -4,8 +4,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.welcomeuniversity.provas.model.Course;
 import com.welcomeuniversity.provas.model.Exam;
@@ -22,13 +25,20 @@ import com.welcomeuniversity.provas.repository.UniversityRepository;
 @Configuration
 public class DataLoader {
 
+    private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
+
     @Bean
+    @ConditionalOnProperty(prefix = "app.seed", name = "enabled", havingValue = "true")
     CommandLineRunner init(StateRepository stateRepo,
                            UniversityRepository uniRepo,
                            CourseRepository courseRepo,
                            SubjectRepository subjectRepo,
                            ExamRepository examRepo) {
         return args -> {
+            if (stateRepo.count() > 0) {
+                log.info("Seed de dados ignorado: o banco ja possui registros.");
+                return;
+            }
 
             List<State> states = Arrays.asList(
                 new State("AC", "Acre"),
@@ -80,6 +90,8 @@ public class DataLoader {
             createSemesterExams(examRepo, algebra, 2025, 1);
             createSemesterExams(examRepo, algebra, 2025, 2);
             createSemesterExams(examRepo, calculo, 2025, 1);
+
+            log.info("Seed inicial carregado com sucesso.");
         };
     }
 
