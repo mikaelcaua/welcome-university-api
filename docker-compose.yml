@@ -12,9 +12,15 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
       APP_SEED_ENABLED: ${APP_SEED_ENABLED}
       JAVA_OPTS: ${JAVA_OPTS}
+      AWS_ACCESS_KEY: ${MINIO_ROOT_USER}
+      AWS_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET_NAME: exams-bucket
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "${APP_PORT}:8080"
     read_only: true
@@ -57,6 +63,24 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
 
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: unless-stopped
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - backend
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
   watchtower:
     image: containrrr/watchtower
     container_name: watchtower
@@ -72,6 +96,7 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
 
 networks:
   backend:
