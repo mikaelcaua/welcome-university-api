@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.welcomeuniversity.provas.model.State;
 import com.welcomeuniversity.provas.repository.StateRepository;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 @RestController
 @RequestMapping("/states")
 public class StateController {
@@ -23,11 +25,13 @@ public class StateController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar estados", security = {})
     public List<State> list() {
         return repo.findAll();
     }
 
     @GetMapping("/{code}")
+    @Operation(summary = "Buscar estado por sigla", security = {})
     public State get(@PathVariable String code) {
         return repo.findByCode(code)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Estado não encontrado: " + code));

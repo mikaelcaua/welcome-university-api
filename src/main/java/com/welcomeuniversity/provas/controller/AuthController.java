@@ -13,6 +13,7 @@ import com.welcomeuniversity.provas.dto.auth.RefreshTokenRequest;
 import com.welcomeuniversity.provas.dto.auth.RegisterRequest;
 import com.welcomeuniversity.provas.service.AuthService;
 
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 
 @RestController
@@ -27,16 +28,19 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Registrar usuario", security = {})
     public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Autenticar usuario", security = {})
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
     }
 
     @PostMapping("/refresh")
+    @Operation(summary = "Renovar tokens", security = {})
     public AuthResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
         return authService.refresh(request);
     }

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.welcomeuniversity.provas.model.Subject;
 import com.welcomeuniversity.provas.repository.SubjectRepository;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 @RestController
 @RequestMapping("/courses/{courseId}/subjects")
 public class SubjectController {
@@ -17,5 +19,6 @@ public class SubjectController {
     public SubjectController(SubjectRepository repo){ this.repo = repo; }
 
     @GetMapping
+    @Operation(summary = "Listar disciplinas por curso", security = {})
     public List<Subject> list(@PathVariable Long courseId){ return repo.findByCourseId(courseId); }
 }
