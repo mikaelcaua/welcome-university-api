@@ -8,7 +8,7 @@ O fluxo principal do sistema e:
 
 1. consultar estados, universidades, cursos e disciplinas;
 2. autenticar usuarios;
-3. permitir envio de provas em PDF vinculadas a uma disciplina;
+3. permitir envio de provas em PDF ou imagem vinculadas a uma disciplina;
 4. permitir aprovacao ou rejeicao dessas provas por perfis autorizados;
 5. disponibilizar apenas provas aprovadas para consulta publica.
 
@@ -76,7 +76,6 @@ Resultado esperado:
 
 Usuario autenticado envia uma prova com:
 
-- nome;
 - ano;
 - semestre;
 - tipo da prova;
@@ -88,8 +87,12 @@ Fluxo:
 1. a API valida o arquivo;
 2. valida o usuario autenticado;
 3. valida a disciplina;
-4. envia o arquivo para o armazenamento S3;
-5. cria a prova com status `PENDING`.
+4. comprime o arquivo (PDF/imagem) quando possivel;
+5. calcula hash do arquivo e bloqueia duplicidade por conteudo;
+6. envia o arquivo para o armazenamento S3;
+7. cria a prova com status:
+   - `APPROVED` automaticamente quando o uploader e `ADMIN` ou `DEV`;
+   - `PENDING` para os demais papeis.
 
 ### 4. Revisao de prova
 
@@ -126,6 +129,7 @@ Perfis `ADMIN` e `DEV` podem:
 - Endpoints de documentacao Swagger sao publicos.
 - Rotas de consulta da arvore academica e de provas aprovadas sao publicas.
 - Criacao de estado, universidade e curso exige perfil `ADMIN` ou `DEV`.
+- Criacao de disciplina exige perfil `ADMIN` ou `DEV`.
 - Upload de prova exige autenticacao.
 - Revisao de prova exige perfil `APPROVER`, `ADMIN` ou `DEV`.
 - Consulta de usuarios exige `ADMIN` ou `DEV`.
@@ -138,12 +142,15 @@ Perfis `ADMIN` e `DEV` podem:
 - Arquivo ausente ou vazio invalida o envio.
 - O campo `semester` deve ser `1` ou `2`.
 - O campo `examYear` deve ser no minimo `2000`.
+- O campo `periodUnidentified` e opcional; quando `true`, marca a prova com `periodLabel = PERIODO_NAO_IDENTIFICADO`.
 - A disciplina informada no upload precisa existir.
-- Toda prova enviada entra com status inicial `PENDING`.
-- Usuarios com papel `USER` podem ter no maximo 5 provas pendentes ao mesmo tempo.
+- Provas com o mesmo conteudo (hash SHA-256) nao podem ser enviadas novamente.
+- Usuarios que nao sao `ADMIN` nem `DEV` podem ter no maximo 5 provas pendentes ao mesmo tempo.
+- Upload por `ADMIN` ou `DEV` aprova automaticamente a prova no momento da criacao.
 - Na revisao, nao e permitido definir o status como `PENDING`.
 - Apenas provas que ainda estao `PENDING` podem ser revisadas.
 - Ao revisar uma prova, a API registra quem revisou, quando revisou e uma observacao opcional.
+- O `pdfUrl` retornado pela API e construido com base no endpoint publico configurado em `S3_PUBLIC_ENDPOINT`.
 
 ### Regras de consulta
 
@@ -184,6 +191,7 @@ Perfis `ADMIN` e `DEV` podem:
 - `POST /states`
 - `POST /states/{stateId}/universities`
 - `POST /universities/{universityId}/courses`
+- `POST /courses/{courseId}/subjects`
 
 ## Payloads e DTOs por rota
 
@@ -485,6 +493,30 @@ Retorno: `List<Subject>`
 - `name: string`
 - `course: Course`
 
+### `POST /courses/{courseId}/subjects`
+
+Autenticacao: Bearer token com perfil `ADMIN` ou `DEV`
+
+Path params:
+
+- `courseId: long`
+
+Request body:
+
+```json
+{
+  "name": "Algoritmos"
+}
+```
+
+DTO de entrada: `CreateSubjectRequest`
+
+- `name: string` obrigatorio
+
+Response `201`:
+
+Mesmo payload de `Subject`.
+
 ### `GET /subjects/{subjectId}/exams`
 
 Autenticacao: publica
@@ -508,6 +540,7 @@ Response `200`:
     "name": "Algoritmos - 2025.1 - PROVA1",
     "examYear": 2025,
     "semester": 1,
+    "periodLabel": null,
     "type": "PROVA1",
     "pdfUrl": "https://bucket.exemplo/provas/arquivo.pdf",
     "status": "APPROVED",
@@ -561,7 +594,7 @@ Mesmo payload de `List<ExamResponse>`, mas retornando provas com status `PENDING
 
 ### `POST /exams`
 
-Autenticacao: Bearer token
+Autenticacao: Bearer token com perfil `USER`, `APPROVER`, `ADMIN` ou `DEV`
 
 Content-Type:
 
@@ -573,6 +606,7 @@ Payload de entrada:
 - `semester: integer` obrigatorio, valores `1` ou `2`
 - `type: ExamType` obrigatorio
 - `subjectId: long` obrigatorio
+- `periodUnidentified: boolean` opcional (default `false`)
 - `file: PDF ou imagem` obrigatorio
 
 Exemplo de envio multipart:
@@ -582,6 +616,7 @@ examYear=2025
 semester=1
 type=PROVA1
 subjectId=30
+periodUnidentified=false
 file=<arquivo.pdf ou arquivo.png>
 ```
 
@@ -595,6 +630,8 @@ Observacao:
 
 - o valor exato aceito em `type` depende do enum `ExamType` implementado no projeto.
 - o campo `name` nao e enviado pela API cliente; ele e gerado pelo backend a partir de disciplina, periodo e tipo da prova.
+- quando `periodUnidentified=true`, a API define `periodLabel=PERIODO_NAO_IDENTIFICADO` e o nome reflete essa marcacao.
+- upload de arquivo duplicado por hash retorna conflito (`409`).
 
 ### `PATCH /exams/{examId}/status`
 
@@ -724,7 +761,7 @@ Observacao:
 1. usuario cria conta ou faz login;
 2. recebe token JWT;
 3. envia prova em PDF;
-4. prova fica pendente ate revisao.
+4. se for `ADMIN`/`DEV`, a prova ja entra aprovada; caso contrario, fica pendente para revisao.
 
 ### Fluxo de moderacao
 
@@ -744,3 +781,15 @@ Para testar endpoints protegidos no Swagger:
 2. clique em `Authorize`;
 3. informe o token Bearer;
 4. execute as rotas protegidas com o contexto autenticado.
+
+## Scripts operacionais
+
+- `scripts/importar_provas_ufma_cc.py`:
+  - importa provas de `courses_databases/ufma/ciencia_computacao`;
+  - cria disciplinas faltantes automaticamente via API (`POST /courses/{courseId}/subjects`);
+  - exige token de usuario `DEV`;
+  - evita reenvio por metadados e trata conflito de duplicidade (`409`).
+- `scripts/aprovar_provas_usuario.py`:
+  - aprova em lote provas pendentes de um usuario alvo;
+  - aceita alvo por `--user-id` ou `--email`;
+  - exige token com papel `ADMIN`, `DEV` ou `APPROVER`.
