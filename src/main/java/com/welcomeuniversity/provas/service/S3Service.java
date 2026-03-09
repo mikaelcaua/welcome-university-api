@@ -67,6 +67,13 @@ public class S3Service {
         return new StoredObject(objectKey, buildObjectUrl(objectKey));
     }
 
+    public String buildPublicUrlFromStorageKey(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) {
+            return null;
+        }
+        return buildObjectUrl(storageKey);
+    }
+
     private String buildObjectUrl(String objectKey) {
         String publicEndpoint = properties.publicEndpoint();
         if (publicEndpoint == null || publicEndpoint.isBlank()) {
