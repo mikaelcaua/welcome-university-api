@@ -14,6 +14,8 @@ import json
 import logging
 import mimetypes
 import re
+import socket
+import time
 import unicodedata
 import uuid
 from pathlib import Path
@@ -105,6 +107,8 @@ def upload_exam_multipart(
     exam_type: str,
     subject_id: int,
     file_path: Path,
+    timeout_seconds: int = 60,
+    max_retries: int = 3,
 ) -> tuple[int, str]:
     boundary = f"----CodexBoundary{uuid.uuid4().hex}"
     content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
@@ -142,6 +146,7 @@ def upload_exam_multipart(
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
         "Content-Type": f"multipart/form-data; boundary={boundary}",
+        "Connection": "close",
     }
     req = request.Request(
         build_url(base_url, "/exams"),
@@ -150,12 +155,27 @@ def upload_exam_multipart(
         headers=headers,
     )
 
-    try:
-        with request.urlopen(req) as response:
-            return int(getattr(response, "status", 201)), response.read().decode("utf-8", errors="replace")
-    except error.HTTPError as exc:
-        details = exc.read().decode("utf-8", errors="replace")
-        return exc.code, details
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            with request.urlopen(req, timeout=timeout_seconds) as response:
+                return int(getattr(response, "status", 201)), response.read().decode("utf-8", errors="replace")
+        except error.HTTPError as exc:
+            details = exc.read().decode("utf-8", errors="replace")
+            return exc.code, details
+        except (error.URLError, TimeoutError, socket.timeout, ConnectionResetError) as exc:
+            if attempt >= max_retries:
+                return 0, f"erro de conexao apos {attempt} tentativas: {exc}"
+            backoff = min(8, 2 ** (attempt - 1))
+            logging.warning(
+                "Falha de conexao no upload (%s), tentativa %s/%s. Aguardando %ss...",
+                file_path.name,
+                attempt,
+                max_retries,
+                backoff,
+            )
+            time.sleep(backoff)
 
 
 def normalize_text(value: str) -> str:
@@ -207,8 +227,6 @@ def main() -> int:
         raise RuntimeError(f"Pasta invalida: {root}")
 
     current_user = api_request(args.base_url, "/users/me", token)
-    if current_user.get("role") != "DEV":
-        raise RuntimeError("Este script so pode ser executado com token de usuario DEV.")
 
     maranhao = api_request(args.base_url, "/states/MA", token)
     universities = api_request(args.base_url, f"/states/{maranhao['id']}/universities", token)
@@ -342,6 +360,8 @@ def main() -> int:
             exam_type,
             subject_id,
             file_path,
+            timeout_seconds=120,
+            max_retries=4,
         )
 
         if status in {200, 201}:
