@@ -27,6 +27,8 @@ public class Exam {
 
     private int semester;
 
+    private String periodLabel;
+
     @Column(nullable = false)
     private String pdfUrl;
 
@@ -113,6 +115,13 @@ public class Exam {
     }
     public void setSemester(int semester) {
         this.semester = semester;
+    }
+
+    public String getPeriodLabel() {
+        return periodLabel;
+    }
+    public void setPeriodLabel(String periodLabel) {
+        this.periodLabel = periodLabel;
     }
 
     public String getPdfUrl() {

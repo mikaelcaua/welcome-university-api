@@ -38,6 +38,8 @@ TYPE_MAP: dict[str, str] = {
     "final": "FINAL",
 }
 PERIOD_REGEX = re.compile(r"(20\d{2})[._\-\s](1|2)\b")
+UNKNOWN_PERIOD_YEAR = 2099
+UNKNOWN_PERIOD_SEMESTER = 1
 
 
 def parse_args() -> argparse.Namespace:
@@ -288,7 +290,8 @@ def main() -> int:
     unresolved_subject = 0
     unresolved_type = 0
     unresolved_period = 0
-    seen_payload_keys: set[tuple[int, int, int, str]] = set()
+    uploaded_unknown_period = 0
+    seen_payload_keys: set[tuple] = set()
 
     approved_cache: dict[int, set[tuple[int, int, int, str]]] = {}
 
@@ -315,14 +318,32 @@ def main() -> int:
             continue
 
         parsed_period = parse_period(file_path.name)
-        if parsed_period is None:
-            logging.warning("Periodo nao identificado no nome do arquivo: %s", file_path.name)
+        unknown_period = parsed_period is None
+        if unknown_period:
+            exam_year = UNKNOWN_PERIOD_YEAR
+            semester = UNKNOWN_PERIOD_SEMESTER
             unresolved_period += 1
-            continue
-
-        exam_year, semester = parsed_period
+            logging.warning(
+                "Periodo nao identificado: %s -> usando fallback %s.%s (periodo nao identificado)",
+                file_path.name,
+                exam_year,
+                semester,
+            )
+        else:
+            exam_year, semester = parsed_period
         payload_key = (subject_id, exam_year, semester, exam_type)
-        if payload_key in seen_payload_keys:
+        if unknown_period:
+            seen_key = (
+                subject_id,
+                "UNKNOWN_PERIOD",
+                exam_type,
+                file_path.name.lower(),
+                file_path.stat().st_size,
+            )
+        else:
+            seen_key = payload_key
+
+        if seen_key in seen_payload_keys:
             skipped += 1
             continue
 
@@ -334,9 +355,9 @@ def main() -> int:
                 if item.get("subjectId") is not None
             }
 
-        if payload_key in approved_cache[subject_id] or payload_key in pending_keys:
+        if (not unknown_period) and (payload_key in approved_cache[subject_id] or payload_key in pending_keys):
             skipped += 1
-            seen_payload_keys.add(payload_key)
+            seen_payload_keys.add(seen_key)
             continue
 
         if args.dry_run:
@@ -349,7 +370,7 @@ def main() -> int:
                 semester,
             )
             created += 1
-            seen_payload_keys.add(payload_key)
+            seen_payload_keys.add(seen_key)
             continue
 
         status, response_body = upload_exam_multipart(
@@ -366,12 +387,15 @@ def main() -> int:
 
         if status in {200, 201}:
             created += 1
-            seen_payload_keys.add(payload_key)
-            approved_cache[subject_id].add(payload_key)
+            seen_payload_keys.add(seen_key)
+            if not unknown_period:
+                approved_cache[subject_id].add(payload_key)
+            else:
+                uploaded_unknown_period += 1
             logging.info("Enviado: %s", relative)
         elif status == 409:
             skipped += 1
-            seen_payload_keys.add(payload_key)
+            seen_payload_keys.add(seen_key)
             logging.info("Ignorado duplicado (409): %s", relative)
         else:
             failed += 1
@@ -390,6 +414,7 @@ def main() -> int:
                 "unresolvedSubject": unresolved_subject,
                 "unresolvedType": unresolved_type,
                 "unresolvedPeriod": unresolved_period,
+                "uploadedUnknownPeriod": uploaded_unknown_period,
             },
             indent=2,
             ensure_ascii=True,

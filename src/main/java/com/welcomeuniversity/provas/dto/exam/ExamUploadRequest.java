@@ -28,6 +28,8 @@ public class ExamUploadRequest {
     @NotNull
     private MultipartFile file;
 
+    private Boolean periodUnidentified = false;
+
     public Integer getExamYear() {
         return examYear;
     }
@@ -66,5 +68,13 @@ public class ExamUploadRequest {
 
     public void setFile(MultipartFile file) {
         this.file = file;
+    }
+
+    public Boolean getPeriodUnidentified() {
+        return periodUnidentified;
+    }
+
+    public void setPeriodUnidentified(Boolean periodUnidentified) {
+        this.periodUnidentified = periodUnidentified;
     }
 }

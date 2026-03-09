@@ -28,6 +28,7 @@ import com.welcomeuniversity.provas.repository.SubjectRepository;
 public class ExamService {
 
     private static final int MAX_PENDING_EXAMS_FOR_USER = 5;
+    private static final String PERIOD_LABEL_UNIDENTIFIED = "PERIODO_NAO_IDENTIFICADO";
     private static final Set<String> SUPPORTED_FILE_EXTENSIONS = Set.of(
         "pdf",
         "png",
@@ -101,12 +102,12 @@ public class ExamService {
         validateSupportedFile(file);
 
         AppUser currentUser = currentUserService.requireCurrentUser();
-        if (currentUser.getRole() == Role.USER) {
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.DEV) {
             long pendingCount = examRepository.countByUploadedByIdAndStatus(currentUser.getId(), ExamStatus.PENDING);
             if (pendingCount >= MAX_PENDING_EXAMS_FOR_USER) {
                 throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Usuarios com ROLE_USER podem ter no maximo 5 provas pendentes."
+                    "Somente ADMIN/DEV podem ultrapassar o limite de 5 provas pendentes."
                 );
             }
         }
@@ -121,16 +122,25 @@ public class ExamService {
         }
 
         S3Service.StoredObject storedObject = s3Service.uploadExam(payload, subject.getId());
+        boolean periodUnidentified = Boolean.TRUE.equals(request.getPeriodUnidentified());
 
         Exam exam = new Exam();
-        exam.setName(buildExamName(subject, request));
+        exam.setName(buildExamName(subject, request, periodUnidentified));
         exam.setExamYear(request.getExamYear());
         exam.setSemester(request.getSemester());
+        exam.setPeriodLabel(periodUnidentified ? PERIOD_LABEL_UNIDENTIFIED : null);
         exam.setType(request.getType());
         exam.setPdfUrl(storedObject.url());
         exam.setStorageKey(storedObject.key());
         exam.setFileHash(fileHash);
-        exam.setStatus(ExamStatus.PENDING);
+        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.DEV) {
+            exam.setStatus(ExamStatus.APPROVED);
+            exam.setReviewedBy(currentUser);
+            exam.setReviewedAt(Instant.now());
+            exam.setReviewNote("Aprovacao automatica: upload por ADMIN/DEV.");
+        } else {
+            exam.setStatus(ExamStatus.PENDING);
+        }
         exam.setSubject(subject);
         exam.setUploadedBy(currentUser);
 
@@ -197,7 +207,15 @@ public class ExamService {
         }
     }
 
-    private String buildExamName(Subject subject, ExamUploadRequest request) {
+    private String buildExamName(Subject subject, ExamUploadRequest request, boolean periodUnidentified) {
+        if (periodUnidentified) {
+            return "%s - %s - %s".formatted(
+                subject.getName().trim(),
+                PERIOD_LABEL_UNIDENTIFIED,
+                formatExamType(request.getType().name())
+            );
+        }
+
         return "%s - %d.%d - %s".formatted(
             subject.getName().trim(),
             request.getExamYear(),
