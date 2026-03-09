@@ -14,6 +14,7 @@ import com.welcomeuniversity.provas.config.S3Properties;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -72,6 +73,23 @@ public class S3Service {
             return null;
         }
         return buildObjectUrl(storageKey);
+    }
+
+    public void deleteObjectByKey(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) {
+            return;
+        }
+
+        try {
+            s3Client.deleteObject(
+                DeleteObjectRequest.builder()
+                    .bucket(properties.bucketName())
+                    .key(storageKey)
+                    .build()
+            );
+        } catch (S3Exception ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Falha ao remover arquivo do S3.");
+        }
     }
 
     private String buildObjectUrl(String objectKey) {

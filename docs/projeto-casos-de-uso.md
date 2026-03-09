@@ -150,6 +150,7 @@ Perfis `ADMIN` e `DEV` podem:
 - Na revisao, nao e permitido definir o status como `PENDING`.
 - Apenas provas que ainda estao `PENDING` podem ser revisadas.
 - Ao revisar uma prova, a API registra quem revisou, quando revisou e uma observacao opcional.
+- Quando a prova e revisada como `REJECTED`, o arquivo associado e removido do bucket S3/MinIO e os ponteiros de arquivo da prova sao limpos.
 - O `pdfUrl` retornado pela API e construido com base no endpoint publico configurado em `S3_PUBLIC_ENDPOINT`.
 
 ### Regras de consulta
@@ -177,6 +178,7 @@ Perfis `ADMIN` e `DEV` podem:
 ### Autenticados
 
 - `GET /users/me`
+- `GET /users/me/exams/pending`
 - `POST /exams`
 
 ### Revisao
@@ -604,6 +606,16 @@ Validacoes:
 - `subjectId` deve pertencer ao `courseId` informado.
 - `courseId` deve pertencer ao `universityId` informado.
 - `universityId` deve pertencer ao `stateId` informado.
+
+### `GET /users/me/exams/pending`
+
+Autenticacao: Bearer token com perfil `USER`, `APPROVER`, `ADMIN` ou `DEV`
+
+Request body: nao possui
+
+Response `200`:
+
+Mesmo payload de `List<ExamResponse>`, retornando apenas provas com status `PENDING` enviadas pelo usuario autenticado.
 
 ### `POST /exams`
 

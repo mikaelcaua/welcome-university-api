@@ -62,6 +62,12 @@ public class ExamController {
         return examService.listPending(stateId, universityId, courseId, subjectId);
     }
 
+    @GetMapping("/users/me/exams/pending")
+    @Operation(summary = "Listar minhas provas pendentes", security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME))
+    public List<ExamResponse> listMyPending() {
+        return examService.listMyPending();
+    }
+
     @PostMapping(value = "/exams", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Enviar prova", security = @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME))

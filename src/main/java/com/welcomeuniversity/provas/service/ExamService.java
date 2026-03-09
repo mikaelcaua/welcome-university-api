@@ -113,6 +113,14 @@ public class ExamService {
             .toList();
     }
 
+    public List<ExamResponse> listMyPending() {
+        AppUser currentUser = currentUserService.requireCurrentUser();
+        return examRepository.findByStatusAndUploadedByIdOrderByIdAsc(ExamStatus.PENDING, currentUser.getId())
+            .stream()
+            .map(ExamResponse::from)
+            .toList();
+    }
+
     @Transactional
     public ExamResponse upload(ExamUploadRequest request) {
         MultipartFile file = request.getFile();
@@ -178,6 +186,11 @@ public class ExamService {
         }
 
         AppUser reviewer = currentUserService.requireCurrentUser();
+        if (request.status() == ExamStatus.REJECTED) {
+            s3Service.deleteObjectByKey(exam.getStorageKey());
+            exam.setPdfUrl("");
+            exam.setStorageKey(null);
+        }
         exam.setStatus(request.status());
         exam.setReviewedBy(reviewer);
         exam.setReviewedAt(Instant.now());

@@ -34,6 +34,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.GET, "/exams/pending").hasAnyRole("APPROVER", "ADMIN", "DEV")
+                .requestMatchers(HttpMethod.GET, "/users/me/exams/pending").hasAnyRole("USER", "APPROVER", "ADMIN", "DEV")
                 .requestMatchers(HttpMethod.GET, "/states/**", "/universities/**", "/courses/**", "/subjects/**", "/exams")
                     .permitAll()
                 .requestMatchers(HttpMethod.POST, "/states").hasAnyRole("ADMIN", "DEV")

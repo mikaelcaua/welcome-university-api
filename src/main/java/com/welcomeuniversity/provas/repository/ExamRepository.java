@@ -22,6 +22,7 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
 
     List<Exam> findByStatusOrderByIdAsc(ExamStatus status);
     List<Exam> findByStatusAndSubjectIdOrderByIdAsc(ExamStatus status, Long subjectId);
+    List<Exam> findByStatusAndUploadedByIdOrderByIdAsc(ExamStatus status, Long uploadedById);
 
     long countByUploadedByIdAndStatus(Long uploadedById, ExamStatus status);
 
