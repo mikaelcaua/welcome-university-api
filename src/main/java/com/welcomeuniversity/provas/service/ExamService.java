@@ -1,6 +1,8 @@
 package com.welcomeuniversity.provas.service;
 
 import java.time.Instant;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -39,17 +41,20 @@ public class ExamService {
     private final SubjectRepository subjectRepository;
     private final CurrentUserService currentUserService;
     private final S3Service s3Service;
+    private final UploadCompressionService uploadCompressionService;
 
     public ExamService(
         ExamRepository examRepository,
         SubjectRepository subjectRepository,
         CurrentUserService currentUserService,
-        S3Service s3Service
+        S3Service s3Service,
+        UploadCompressionService uploadCompressionService
     ) {
         this.examRepository = examRepository;
         this.subjectRepository = subjectRepository;
         this.currentUserService = currentUserService;
         this.s3Service = s3Service;
+        this.uploadCompressionService = uploadCompressionService;
     }
 
     public List<ExamResponse> listApproved(Long subjectId, String period) {
@@ -109,7 +114,13 @@ public class ExamService {
         Subject subject = subjectRepository.findById(request.getSubjectId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Materia nao encontrada."));
 
-        S3Service.StoredObject storedObject = s3Service.uploadExam(file, subject.getId());
+        S3Service.UploadPayload payload = uploadCompressionService.compressForUpload(file);
+        String fileHash = sha256Hex(payload.bytes());
+        if (examRepository.existsByFileHash(fileHash)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Arquivo ja existe na base.");
+        }
+
+        S3Service.StoredObject storedObject = s3Service.uploadExam(payload, subject.getId());
 
         Exam exam = new Exam();
         exam.setName(buildExamName(subject, request));
@@ -118,6 +129,7 @@ public class ExamService {
         exam.setType(request.getType());
         exam.setPdfUrl(storedObject.url());
         exam.setStorageKey(storedObject.key());
+        exam.setFileHash(fileHash);
         exam.setStatus(ExamStatus.PENDING);
         exam.setSubject(subject);
         exam.setUploadedBy(currentUser);
@@ -211,5 +223,19 @@ public class ExamService {
             return null;
         }
         return input.trim();
+    }
+
+    private String sha256Hex(byte[] content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content);
+            StringBuilder builder = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                builder.append(String.format("%02x", b));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Falha ao calcular hash do arquivo.");
+        }
     }
 }

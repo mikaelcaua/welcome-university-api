@@ -23,4 +23,6 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
     List<Exam> findByStatusOrderByIdAsc(ExamStatus status);
 
     long countByUploadedByIdAndStatus(Long uploadedById, ExamStatus status);
+
+    boolean existsByFileHash(String fileHash);
 }

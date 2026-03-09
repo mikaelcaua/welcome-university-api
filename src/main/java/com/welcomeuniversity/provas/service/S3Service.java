@@ -1,6 +1,5 @@
 package com.welcomeuniversity.provas.service;
 
-import java.io.IOException;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -8,7 +7,6 @@ import jakarta.annotation.PostConstruct;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.welcomeuniversity.provas.config.S3Properties;
@@ -47,11 +45,11 @@ public class S3Service {
         }
     }
 
-    public StoredObject uploadExam(MultipartFile file, Long subjectId) {
-        String originalFilename = file.getOriginalFilename() == null ? "exam" : file.getOriginalFilename();
+    public StoredObject uploadExam(UploadPayload payload, Long subjectId) {
+        String originalFilename = payload.originalFilename() == null ? "exam" : payload.originalFilename();
         String sanitizedFilename = originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
         String objectKey = "subjects/%d/%s-%s".formatted(subjectId, UUID.randomUUID(), sanitizedFilename);
-        String contentType = resolveContentType(file, sanitizedFilename);
+        String contentType = resolveContentType(payload.contentType(), sanitizedFilename);
 
         try {
             s3Client.putObject(
@@ -60,10 +58,8 @@ public class S3Service {
                     .key(objectKey)
                     .contentType(contentType)
                     .build(),
-                RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+                RequestBody.fromBytes(payload.bytes())
             );
-        } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Falha ao ler arquivo enviado.");
         } catch (S3Exception ex) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Falha ao enviar arquivo para o S3.");
         }
@@ -82,8 +78,8 @@ public class S3Service {
         return "%s/%s/%s".formatted(baseEndpoint, properties.bucketName(), objectKey);
     }
 
-    private String resolveContentType(MultipartFile file, String filename) {
-        String contentType = file.getContentType();
+    private String resolveContentType(String providedContentType, String filename) {
+        String contentType = providedContentType;
         if (contentType != null && !contentType.isBlank()) {
             return contentType;
         }
@@ -108,5 +104,8 @@ public class S3Service {
     }
 
     public record StoredObject(String key, String url) {
+    }
+
+    public record UploadPayload(String originalFilename, String contentType, byte[] bytes) {
     }
 }

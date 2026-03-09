@@ -32,6 +32,9 @@ public class Exam {
 
     private String storageKey;
 
+    @Column(unique = true, length = 64)
+    private String fileHash;
+
     @Enumerated(EnumType.STRING)
     private ExamType type;
 
@@ -124,6 +127,13 @@ public class Exam {
     }
     public void setStorageKey(String storageKey) {
         this.storageKey = storageKey;
+    }
+
+    public String getFileHash() {
+        return fileHash;
+    }
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
     }
 
     public ExamType getType() {
