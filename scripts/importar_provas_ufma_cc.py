@@ -33,13 +33,33 @@ TYPE_MAP: dict[str, str] = {
     "p2": "PROVA2",
     "prova3": "PROVA3",
     "p3": "PROVA3",
+    "prova4": "FINAL",
+    "p4": "FINAL",
+    "provax": "FINAL",
+    "px": "FINAL",
     "reposicao": "RECUPERACAO",
     "recuperacao": "RECUPERACAO",
     "final": "FINAL",
 }
-PERIOD_REGEX = re.compile(r"(20\d{2})[._\-\s](1|2)\b")
-UNKNOWN_PERIOD_YEAR = 2099
+PERIOD_REGEX = re.compile(r"(?<!\d)(20\d{2})[._\-\s](1|2)(?!\d)")
+YEAR_ONLY_REGEX = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+UNKNOWN_PERIOD_YEAR = 9999
 UNKNOWN_PERIOD_SEMESTER = 1
+MAX_REAUTH_403_ATTEMPTS = 3
+FILE_TOKEN_TYPE_MAP: dict[str, str] = {
+    "GB": "PROVA1",
+    "PR": "PROVA2",
+    "PV": "PROVA3",
+}
+
+
+class ApiHttpError(RuntimeError):
+    def __init__(self, code: int, method: str, path: str, details: str):
+        super().__init__(f"Falha HTTP {code} em {method} {path}: {details}")
+        self.code = code
+        self.method = method
+        self.path = path
+        self.details = details
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,6 +86,17 @@ def ask_token(cli_token: str | None = None) -> str:
     token = input("Informe o token Bearer (sem 'Bearer '): ").strip()
     if not token:
         raise RuntimeError("Token vazio. Informe um token valido.")
+    return token
+
+
+def ask_new_token_due_forbidden(previous_token: str | None = None) -> str:
+    token = input("API retornou 403. Informe outro token Bearer (sem 'Bearer '): ").strip()
+    if not token:
+        raise RuntimeError("Token vazio. Informe um token valido.")
+    if previous_token and token == previous_token:
+        raise RuntimeError(
+            "Mesmo token informado novamente apos 403. Gere um novo access token e tente de novo."
+        )
     return token
 
 
@@ -96,9 +127,40 @@ def api_request(
             return json.loads(body.decode("utf-8"))
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Falha HTTP {exc.code} em {method} {path}: {details}") from exc
+        raise ApiHttpError(exc.code, method, path, details) from exc
     except error.URLError as exc:
         raise RuntimeError(f"Nao foi possivel conectar em {base_url}: {exc.reason}") from exc
+
+
+def api_request_with_reauth(
+    base_url: str,
+    path: str,
+    token: str,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+) -> tuple[Any, str]:
+    current_token = token
+    forbidden_count = 0
+    while True:
+        try:
+            response = api_request(base_url, path, current_token, method=method, payload=payload)
+            return response, current_token
+        except ApiHttpError as exc:
+            if exc.code != 403:
+                raise
+            forbidden_count += 1
+            if forbidden_count >= MAX_REAUTH_403_ATTEMPTS:
+                raise RuntimeError(
+                    f"Recebido 403 {forbidden_count} vezes em {method} {path}. "
+                    "Interrompendo para evitar loop de reautenticacao."
+                ) from exc
+            logging.warning(
+                "Recebido 403 em %s %s. Resposta: %s. Solicitando novo token...",
+                method,
+                path,
+                (exc.details or "").strip()[:300],
+            )
+            current_token = ask_new_token_due_forbidden(previous_token=current_token)
 
 
 def upload_exam_multipart(
@@ -180,6 +242,50 @@ def upload_exam_multipart(
             time.sleep(backoff)
 
 
+def upload_exam_multipart_with_reauth(
+    base_url: str,
+    token: str,
+    exam_year: int,
+    semester: int,
+    exam_type: str,
+    subject_id: int,
+    file_path: Path,
+    timeout_seconds: int = 60,
+    max_retries: int = 3,
+) -> tuple[int, str, str]:
+    current_token = token
+    forbidden_count = 0
+    while True:
+        status, response_body = upload_exam_multipart(
+            base_url,
+            current_token,
+            exam_year,
+            semester,
+            exam_type,
+            subject_id,
+            file_path,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+        )
+        if status != 403:
+            return status, response_body, current_token
+        forbidden_count += 1
+        if forbidden_count >= MAX_REAUTH_403_ATTEMPTS:
+            return (
+                403,
+                f"Recebido 403 {forbidden_count} vezes no upload de {file_path.name}. "
+                f"Ultima resposta: {(response_body or '').strip()[:300]}. "
+                "Interrompendo para evitar loop de reautenticacao.",
+                current_token,
+            )
+        logging.warning(
+            "Recebido 403 no upload de %s. Resposta: %s. Solicitando novo token...",
+            file_path.name,
+            (response_body or "").strip()[:300],
+        )
+        current_token = ask_new_token_due_forbidden(previous_token=current_token)
+
+
 def normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
     ascii_only = "".join(ch for ch in normalized if not unicodedata.combining(ch))
@@ -200,12 +306,25 @@ def resolve_exam_type(folder_name: str) -> str | None:
     return None
 
 
+def resolve_exam_type_from_file_name(file_name: str) -> str | None:
+    stem = Path(file_name).stem.upper()
+    tokens = [token for token in re.split(r"[^A-Z0-9]+", stem) if token]
+    for token in tokens:
+        mapped = FILE_TOKEN_TYPE_MAP.get(token)
+        if mapped:
+            return mapped
+    return None
+
+
 def parse_period(file_name: str) -> tuple[int, int] | None:
     stem = Path(file_name).stem
     match = PERIOD_REGEX.search(stem)
-    if not match:
-        return None
-    return int(match.group(1)), int(match.group(2))
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    year_only = YEAR_ONLY_REGEX.search(stem)
+    if year_only:
+        return int(year_only.group(1)), 1
+    return None
 
 
 def list_exam_files(root: Path) -> list[Path]:
@@ -228,20 +347,20 @@ def main() -> int:
     if not root.exists() or not root.is_dir():
         raise RuntimeError(f"Pasta invalida: {root}")
 
-    current_user = api_request(args.base_url, "/users/me", token)
+    current_user, token = api_request_with_reauth(args.base_url, "/users/me", token)
 
-    maranhao = api_request(args.base_url, "/states/MA", token)
-    universities = api_request(args.base_url, f"/states/{maranhao['id']}/universities", token)
+    maranhao, token = api_request_with_reauth(args.base_url, "/states/MA", token)
+    universities, token = api_request_with_reauth(args.base_url, f"/states/{maranhao['id']}/universities", token)
     ufma = next((u for u in universities if (u.get("name") or "").strip().lower() == "ufma"), None)
     if ufma is None:
         raise RuntimeError("UFMA nao encontrada. Rode o script de alimentacao inicial primeiro.")
 
-    courses = api_request(args.base_url, f"/universities/{ufma['id']}/courses", token)
+    courses, token = api_request_with_reauth(args.base_url, f"/universities/{ufma['id']}/courses", token)
     course = next((c for c in courses if normalize_text(c.get("name") or "") == normalize_text("Ciencia da Computacao")), None)
     if course is None:
         raise RuntimeError("Curso Ciencia da Computacao nao encontrado na UFMA.")
 
-    subjects = api_request(args.base_url, f"/courses/{course['id']}/subjects", token)
+    subjects, token = api_request_with_reauth(args.base_url, f"/courses/{course['id']}/subjects", token)
     subject_by_name = {normalize_text(s["name"]): int(s["id"]) for s in subjects if s.get("name") and s.get("id")}
 
     folder_subjects = list_subject_folders(root)
@@ -251,7 +370,7 @@ def main() -> int:
         if normalized in subject_by_name:
             continue
         try:
-            response = api_request(
+            response, token = api_request_with_reauth(
                 args.base_url,
                 f"/courses/{course['id']}/subjects",
                 token,
@@ -268,12 +387,12 @@ def main() -> int:
                 continue
             raise
 
-    subjects = api_request(args.base_url, f"/courses/{course['id']}/subjects", token)
+    subjects, token = api_request_with_reauth(args.base_url, f"/courses/{course['id']}/subjects", token)
     subject_by_name = {normalize_text(s["name"]): int(s["id"]) for s in subjects if s.get("name") and s.get("id")}
     if not subject_by_name:
         raise RuntimeError("Nenhuma disciplina encontrada para o curso, mesmo apos tentativa de criacao automatica.")
 
-    pending = api_request(args.base_url, "/exams/pending", token)
+    pending, token = api_request_with_reauth(args.base_url, "/exams/pending", token)
     pending_keys = {
         (int(item["subjectId"]), int(item["examYear"]), int(item["semester"]), str(item["type"]))
         for item in pending
@@ -313,6 +432,8 @@ def main() -> int:
 
         exam_type = resolve_exam_type(type_folder)
         if exam_type is None:
+            exam_type = resolve_exam_type_from_file_name(file_path.name)
+        if exam_type is None:
             logging.warning("Tipo de prova nao reconhecido para pasta: %s", type_folder)
             unresolved_type += 1
             continue
@@ -348,7 +469,7 @@ def main() -> int:
             continue
 
         if subject_id not in approved_cache:
-            approved = api_request(args.base_url, f"/exams?subjectId={subject_id}", token)
+            approved, token = api_request_with_reauth(args.base_url, f"/exams?subjectId={subject_id}", token)
             approved_cache[subject_id] = {
                 (int(item["subjectId"]), int(item["examYear"]), int(item["semester"]), str(item["type"]))
                 for item in approved
@@ -373,7 +494,7 @@ def main() -> int:
             seen_payload_keys.add(seen_key)
             continue
 
-        status, response_body = upload_exam_multipart(
+        status, response_body, token = upload_exam_multipart_with_reauth(
             args.base_url,
             token,
             exam_year,
