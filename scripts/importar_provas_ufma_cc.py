@@ -392,12 +392,17 @@ def main() -> int:
     if not subject_by_name:
         raise RuntimeError("Nenhuma disciplina encontrada para o curso, mesmo apos tentativa de criacao automatica.")
 
-    pending, token = api_request_with_reauth(args.base_url, "/exams/pending", token)
-    pending_keys = {
-        (int(item["subjectId"]), int(item["examYear"]), int(item["semester"]), str(item["type"]))
-        for item in pending
-        if item.get("subjectId") is not None and item.get("examYear") is not None and item.get("semester") is not None
-    }
+    pending_keys: set[tuple[int, int, int, str]] = set()
+    for subject_id in subject_by_name.values():
+        pending, token = api_request_with_reauth(
+            args.base_url,
+            f"/exams/pending?stateId={maranhao['id']}&universityId={ufma['id']}&courseId={course['id']}&subjectId={subject_id}",
+            token,
+        )
+        for item in pending:
+            if item.get("subjectId") is None or item.get("examYear") is None or item.get("semester") is None:
+                continue
+            pending_keys.add((int(item["subjectId"]), int(item["examYear"]), int(item["semester"]), str(item["type"])))
 
     exam_files = list_exam_files(root)
     if args.limit is not None:

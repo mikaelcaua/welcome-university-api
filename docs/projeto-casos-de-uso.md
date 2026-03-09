@@ -98,7 +98,7 @@ Fluxo:
 
 Perfis `APPROVER`, `ADMIN` e `DEV` podem:
 
-- listar provas pendentes;
+- listar provas pendentes com contexto academico obrigatorio (`stateId`, `universityId`, `courseId`, `subjectId`);
 - aprovar prova;
 - rejeitar prova;
 - registrar observacao de revisao.
@@ -586,11 +586,24 @@ Mesmo payload de `List<ExamResponse>` usado em `GET /subjects/{subjectId}/exams`
 
 Autenticacao: Bearer token com perfil `APPROVER`, `ADMIN` ou `DEV`
 
+Query params (obrigatorios):
+
+- `stateId: long`
+- `universityId: long`
+- `courseId: long`
+- `subjectId: long`
+
 Request body: nao possui
 
 Response `200`:
 
 Mesmo payload de `List<ExamResponse>`, mas retornando provas com status `PENDING`.
+
+Validacoes:
+
+- `subjectId` deve pertencer ao `courseId` informado.
+- `courseId` deve pertencer ao `universityId` informado.
+- `universityId` deve pertencer ao `stateId` informado.
 
 ### `POST /exams`
 
@@ -792,4 +805,5 @@ Para testar endpoints protegidos no Swagger:
 - `scripts/aprovar_provas_usuario.py`:
   - aprova em lote provas pendentes de um usuario alvo;
   - aceita alvo por `--user-id` ou `--email`;
+  - exige `stateId`, `universityId`, `courseId` e `subjectId` para buscar pendencias;
   - exige token com papel `ADMIN`, `DEV` ou `APPROVER`.

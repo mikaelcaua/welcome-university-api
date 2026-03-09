@@ -26,6 +26,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--token", help="Token Bearer (sem 'Bearer ').")
     parser.add_argument("--user-id", type=int, help="ID do usuario alvo (uploader).")
     parser.add_argument("--email", help="Email do usuario alvo (uploader).")
+    parser.add_argument("--university-id", type=int, help="ID da universidade para filtrar pendencias.")
+    parser.add_argument("--course-id", type=int, help="ID do curso para filtrar pendencias.")
+    parser.add_argument("--subject-id", type=int, help="ID da disciplina para filtrar pendencias.")
+    parser.add_argument("--state-id", type=int, help="ID do estado para filtrar pendencias.")
     parser.add_argument("--dry-run", action="store_true", help="Nao aplica PATCH, apenas simula.")
     parser.add_argument(
         "--note",
@@ -58,6 +62,18 @@ def ask_user_id(cli_user_id: int | None = None) -> int:
         return int(raw)
     except ValueError as exc:
         raise RuntimeError("User-id invalido. Informe um numero inteiro.") from exc
+
+
+def ask_required_int(prompt: str, value: int | None) -> int:
+    if value is not None:
+        return value
+    raw = input(prompt).strip()
+    if not raw:
+        raise RuntimeError("Valor obrigatorio nao informado.")
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise RuntimeError("Valor invalido. Informe um numero inteiro.") from exc
 
 
 def build_url(base_url: str, path: str) -> str:
@@ -129,7 +145,15 @@ def main() -> int:
         raise RuntimeError("Token precisa ser ADMIN, DEV ou APPROVER para aprovar provas.")
 
     target_user_id, target_user_email = resolve_target_user(args.base_url, token, args.user_id, args.email)
-    pending = api_request(args.base_url, "/exams/pending", token)
+    state_id = ask_required_int("Informe o state-id: ", args.state_id)
+    university_id = ask_required_int("Informe o university-id: ", args.university_id)
+    course_id = ask_required_int("Informe o course-id: ", args.course_id)
+    subject_id = ask_required_int("Informe o subject-id: ", args.subject_id)
+    pending = api_request(
+        args.base_url,
+        f"/exams/pending?stateId={state_id}&universityId={university_id}&courseId={course_id}&subjectId={subject_id}",
+        token,
+    )
     if not isinstance(pending, list):
         raise RuntimeError("Resposta invalida ao listar provas pendentes.")
 
@@ -174,6 +198,10 @@ def main() -> int:
             {
                 "targetUserId": target_user_id,
                 "targetUserEmail": target_user_email,
+                "stateId": state_id,
+                "universityId": university_id,
+                "courseId": course_id,
+                "subjectId": subject_id,
                 "dryRun": args.dry_run,
                 "pendingFound": len(target_pending),
                 "approved": approved,

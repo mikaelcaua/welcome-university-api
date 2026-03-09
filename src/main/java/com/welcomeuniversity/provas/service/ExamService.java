@@ -89,8 +89,25 @@ public class ExamService {
             .toList();
     }
 
-    public List<ExamResponse> listPending() {
-        return examRepository.findByStatusOrderByIdAsc(ExamStatus.PENDING)
+    public List<ExamResponse> listPending(Long stateId, Long universityId, Long courseId, Long subjectId) {
+        Subject subject = subjectRepository.findById(subjectId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Materia nao encontrada."));
+
+        if (subject.getCourse() == null || subject.getCourse().getId() == null || !subject.getCourse().getId().equals(courseId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "subjectId nao pertence ao courseId informado.");
+        }
+        if (subject.getCourse().getUniversity() == null
+            || subject.getCourse().getUniversity().getId() == null
+            || !subject.getCourse().getUniversity().getId().equals(universityId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "courseId nao pertence ao universityId informado.");
+        }
+        if (subject.getCourse().getUniversity().getState() == null
+            || subject.getCourse().getUniversity().getState().getId() == null
+            || !subject.getCourse().getUniversity().getState().getId().equals(stateId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "universityId nao pertence ao stateId informado.");
+        }
+
+        return examRepository.findByStatusAndSubjectIdOrderByIdAsc(ExamStatus.PENDING, subjectId)
             .stream()
             .map(ExamResponse::from)
             .toList();
