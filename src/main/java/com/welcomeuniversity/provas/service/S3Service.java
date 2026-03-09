@@ -68,13 +68,18 @@ public class S3Service {
     }
 
     private String buildObjectUrl(String objectKey) {
-        if (properties.endpoint() == null || properties.endpoint().isBlank()) {
+        String publicEndpoint = properties.publicEndpoint();
+        if (publicEndpoint == null || publicEndpoint.isBlank()) {
+            publicEndpoint = properties.endpoint();
+        }
+
+        if (publicEndpoint == null || publicEndpoint.isBlank()) {
             return "s3://%s/%s".formatted(properties.bucketName(), objectKey);
         }
 
-        String baseEndpoint = properties.endpoint().endsWith("/")
-            ? properties.endpoint().substring(0, properties.endpoint().length() - 1)
-            : properties.endpoint();
+        String baseEndpoint = publicEndpoint.endsWith("/")
+            ? publicEndpoint.substring(0, publicEndpoint.length() - 1)
+            : publicEndpoint;
         return "%s/%s/%s".formatted(baseEndpoint, properties.bucketName(), objectKey);
     }
 

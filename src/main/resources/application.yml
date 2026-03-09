@@ -55,6 +55,7 @@ app:
     refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800}
   s3:
     endpoint: ${S3_ENDPOINT:http://minio:9000}
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:http://localhost:9002}
     bucket-name: ${S3_BUCKET_NAME:exams-bucket}
     access-key: ${AWS_ACCESS_KEY}
     secret-key: ${AWS_SECRET_KEY}
