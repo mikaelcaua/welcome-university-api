@@ -207,7 +207,7 @@ Request body:
 {
   "name": "Maria Silva",
   "email": "maria@exemplo.com",
-  "password": "senha1234"
+  "password": "Senha@1234"
 }
 ```
 
@@ -215,7 +215,7 @@ DTO de entrada: `RegisterRequest`
 
 - `name: string` obrigatorio
 - `email: string` obrigatorio, formato de email
-- `password: string` obrigatorio, minimo 8 e maximo 100 caracteres
+- `password: string` obrigatorio, minimo 8 e maximo 100 caracteres, com pelo menos 1 letra, 1 numero e 1 caractere especial
 
 Response `200/201`:
 
