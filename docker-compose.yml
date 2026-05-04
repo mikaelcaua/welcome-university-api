@@ -27,8 +27,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 4G
+          cpus: '1.0'
+          memory: 1.2G
         reservations:
           memory: 512M
     read_only: true
@@ -55,7 +55,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 512M
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
