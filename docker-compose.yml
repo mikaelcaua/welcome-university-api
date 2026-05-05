@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   api:
     image: ${APP_IMAGE}
@@ -27,10 +29,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '0.8'
+          memory: 800M
         reservations:
-          memory: 1G
+          memory: 300M
     read_only: true
     tmpfs:
       - /tmp
@@ -55,7 +57,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 300M
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -79,6 +81,10 @@ services:
     image: quay.io/minio/minio
     container_name: minio
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300M
     ports:
       - "9002:9000"
       - "9003:9001"
@@ -97,6 +103,10 @@ services:
     image: containrrr/watchtower
     container_name: watchtower
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 100M
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
