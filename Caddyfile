@@ -1,3 +1,9 @@
 welcome-university.duckdns.org {
-    reverse_proxy api:8080
+    handle_path /storage* {
+        reverse_proxy minio:9000
+    }
+
+    handle {
+        reverse_proxy api:8080
+    }
 }
