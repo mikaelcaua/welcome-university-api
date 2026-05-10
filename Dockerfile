@@ -1,36 +1,28 @@
-FROM maven:3.9.9-eclipse-temurin-17 AS build
+FROM golang:1.22-alpine AS build
 
 WORKDIR /workspace
 
-COPY pom.xml .
-RUN mvn -B -q dependency:go-offline
+COPY go.mod ./
+RUN go mod download
 
-COPY src ./src
-RUN mvn -B -DskipTests clean package
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /workspace/api ./cmd/api
 
-FROM eclipse-temurin:17-jre-jammy AS runtime
+FROM alpine:3.20 AS runtime
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system spring \
-    && useradd --system --gid spring --home-dir /app --create-home spring
+RUN apk add --no-cache ca-certificates wget \
+    && addgroup -S app \
+    && adduser -S app -G app
 
 WORKDIR /app
 
-COPY --from=build /workspace/target/*.jar /app/app.jar
+COPY --from=build /workspace/api /app/api
 
-RUN chown -R spring:spring /app
-
-USER spring:spring
+USER app:app
 
 EXPOSE 8080
 
-ENV JAVA_OPTS="" \
-    SPRING_PROFILES_ACTIVE=prod
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=5 \
+  CMD wget -qO- "http://127.0.0.1:${API_PORT:-8080}/actuator/health/readiness" >/dev/null || exit 1
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=5 \
-  CMD curl --fail --silent http://127.0.0.1:8080/actuator/health/readiness || exit 1
-
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
-
+ENTRYPOINT ["/app/api"]
