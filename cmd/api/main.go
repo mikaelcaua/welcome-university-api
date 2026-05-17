@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	config "github.com/mikaelcaua/welcome-university-api/internal/config"
-	database "github.com/mikaelcaua/welcome-university-api/internal/database"
-	"github.com/mikaelcaua/welcome-university-api/internal/routes"
+	"github.com/mikaelcaua/welcome-university-api/internal/infra/config"
+	"github.com/mikaelcaua/welcome-university-api/internal/infra/database"
+	"github.com/mikaelcaua/welcome-university-api/internal/infra/routes"
 )
 
 func main() {
