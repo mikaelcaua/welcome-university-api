@@ -17,12 +17,12 @@ type Config struct {
 	AccessTokenExpirationSeconds int64
 	RefreshTokenExpirationSeconds int64
 	MaxUploadSizeMB int64
-	S3Endpoint string
-	S3PublicEndpoint string
-	S3BucketName string
-	S3AccessKey string
-	S3SecretKey string
-	S3Region string
+	MinioEndpoint string
+	MinioPublicEndpoint string
+	MinioBucketName string
+	MinioAccessKey string
+	MinioSecretKey string
+	MinioRegion string
 }
 
 func Load() Config {
@@ -36,12 +36,12 @@ func Load() Config {
 		AccessTokenExpirationSeconds:  getEnvInt64("API_ACCESS_TOKEN_EXPIRATION_SECONDS", 900),
 		RefreshTokenExpirationSeconds: getEnvInt64("API_REFRESH_TOKEN_EXPIRATION_SECONDS", 604800),
 		MaxUploadSizeMB:               getEnvInt64("API_MAX_UPLOAD_MB", 25),
-		S3Endpoint:                    getEnv("STORAGE_ENDPOINT", "http://minio:9000"),
-		S3PublicEndpoint:              getEnv("STORAGE_PUBLIC_ENDPOINT", "http://localhost:9002"),
-		S3BucketName:                  getEnv("STORAGE_BUCKET_NAME", "exams-bucket"),
-		S3AccessKey:                   getEnv("STORAGE_ACCESS_KEY", ""),
-		S3SecretKey:                   getEnv("STORAGE_SECRET_KEY", ""),
-		S3Region:                      getEnv("STORAGE_REGION", "us-east-1"),
+		MinioEndpoint:                getEnvAny([]string{"MINIO_ENDPOINT", "STORAGE_ENDPOINT"}, "http://minio:9000"),
+		MinioPublicEndpoint:          getEnvAny([]string{"MINIO_PUBLIC_ENDPOINT", "S3_PUBLIC_ENDPOINT", "STORAGE_PUBLIC_ENDPOINT"}, "http://localhost:9002"),
+		MinioBucketName:              getEnvAny([]string{"MINIO_BUCKET_NAME", "S3_BUCKET_NAME", "STORAGE_BUCKET_NAME"}, "exams-bucket"),
+		MinioAccessKey:               getEnvAny([]string{"MINIO_ROOT_USER", "STORAGE_ACCESS_KEY"}, ""),
+		MinioSecretKey:               getEnvAny([]string{"MINIO_ROOT_PASSWORD", "STORAGE_SECRET_KEY"}, ""),
+		MinioRegion:                  getEnvAny([]string{"MINIO_REGION", "AWS_REGION", "STORAGE_REGION"}, "us-east-1"),
 	}
 }
 
@@ -55,8 +55,8 @@ func (config Config) Validate() error {
 	if config.DatabaseUser == "" || config.DatabasePassword == "" || config.DatabaseName == "" {
 		return fmt.Errorf("DB_NAME, DB_USER and DB_PASSWORD are required")
 	}
-	if config.S3AccessKey == "" || config.S3SecretKey == "" || config.S3BucketName == "" {
-		return fmt.Errorf("STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY and STORAGE_BUCKET_NAME are required")
+	if config.MinioAccessKey == "" || config.MinioSecretKey == "" || config.MinioBucketName == "" {
+		return fmt.Errorf("MINIO_ROOT_USER, MINIO_ROOT_PASSWORD and MINIO_BUCKET_NAME are required")
 	}
 	return nil
 }
@@ -67,6 +67,15 @@ func getEnv(name string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func getEnvAny(names []string, fallback string) string {
+	for _, name := range names {
+		if value := os.Getenv(name); value != "" {
+			return value
+		}
+	}
+	return fallback
 }
 
 func getEnvInt64(name string, fallback int64) int64 {

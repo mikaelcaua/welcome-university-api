@@ -40,7 +40,7 @@ func Create(ctx context.Context, appConfig config.Config, pool *pgxpool.Pool) (h
 	courseRepository := courserepository.NewPostgresCourseRepositoryImpl(pool)
 	subjectRepository := subjectrepository.NewPostgresSubjectRepositoryImpl(pool)
 	examRepository := examrepository.NewPostgresExamRepositoryImpl(pool)
-	storageRepository, err := storagerepository.NewAwsS3StorageRepositoryImpl(ctx, appConfig)
+	storageRepository, err := storagerepository.NewMinioStorageRepositoryImpl(ctx, appConfig)
 	if err != nil {
 		return nil, nil, err
 	}
