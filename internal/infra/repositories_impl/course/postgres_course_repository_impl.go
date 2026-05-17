@@ -33,12 +33,12 @@ func (repository *PostgresCourseRepositoryImpl) ListByUniversity(ctx context.Con
 }
 
 func (repository *PostgresCourseRepositoryImpl) FindByID(ctx context.Context, courseID int64) (course.Course, bool, error) {
-	var course course.Course
-	err := repository.pool.QueryRow(ctx, `SELECT id, name FROM course WHERE id = $1`, courseID).Scan(&course.ID, &course.Name)
-	if domainerrors.Is(err, pgx.ErrNoRows) {
+	var foundCourse course.Course
+	err := repository.pool.QueryRow(ctx, `SELECT id, name FROM course WHERE id = $1`, courseID).Scan(&foundCourse.ID, &foundCourse.Name)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return course.Course{}, false, nil
 	}
-	return course, err == nil, err
+	return foundCourse, err == nil, err
 }
 
 func (repository *PostgresCourseRepositoryImpl) NameExistsInUniversity(ctx context.Context, name string, universityID int64) (bool, error) {

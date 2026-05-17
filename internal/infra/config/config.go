@@ -7,22 +7,22 @@ import (
 )
 
 type Config struct {
-	ServerPort string
-	DatabaseURL string
-	DatabaseUser string
+	ServerPort       string
+	DatabaseURL      string
+	DatabaseUser     string
 	DatabasePassword string
-	DatabaseName string
+	DatabaseName     string
 
-	JWTSecret string
-	AccessTokenExpirationSeconds int64
+	JWTSecret                     string
+	AccessTokenExpirationSeconds  int64
 	RefreshTokenExpirationSeconds int64
-	MaxUploadSizeMB int64
-	MinioEndpoint string
-	MinioPublicEndpoint string
-	MinioBucketName string
-	MinioAccessKey string
-	MinioSecretKey string
-	MinioRegion string
+	MaxUploadSizeMB               int64
+	MinioEndpoint                 string
+	MinioPublicEndpoint           string
+	MinioBucketName               string
+	MinioAccessKey                string
+	MinioSecretKey                string
+	MinioRegion                   string
 }
 
 func Load() Config {
@@ -36,12 +36,12 @@ func Load() Config {
 		AccessTokenExpirationSeconds:  getEnvInt64("API_ACCESS_TOKEN_EXPIRATION_SECONDS", 900),
 		RefreshTokenExpirationSeconds: getEnvInt64("API_REFRESH_TOKEN_EXPIRATION_SECONDS", 604800),
 		MaxUploadSizeMB:               getEnvInt64("API_MAX_UPLOAD_MB", 25),
-		MinioEndpoint:                getEnvAny([]string{"MINIO_ENDPOINT", "STORAGE_ENDPOINT"}, "http://minio:9000"),
-		MinioPublicEndpoint:          getEnvAny([]string{"MINIO_PUBLIC_ENDPOINT", "S3_PUBLIC_ENDPOINT", "STORAGE_PUBLIC_ENDPOINT"}, "http://localhost:9002"),
-		MinioBucketName:              getEnvAny([]string{"MINIO_BUCKET_NAME", "S3_BUCKET_NAME", "STORAGE_BUCKET_NAME"}, "exams-bucket"),
-		MinioAccessKey:               getEnvAny([]string{"MINIO_ROOT_USER", "STORAGE_ACCESS_KEY"}, ""),
-		MinioSecretKey:               getEnvAny([]string{"MINIO_ROOT_PASSWORD", "STORAGE_SECRET_KEY"}, ""),
-		MinioRegion:                  getEnvAny([]string{"MINIO_REGION", "AWS_REGION", "STORAGE_REGION"}, "us-east-1"),
+		MinioEndpoint:                 getEnvAny([]string{"MINIO_ENDPOINT", "STORAGE_ENDPOINT"}, "http://minio:9000"),
+		MinioPublicEndpoint:           getEnvAny([]string{"MINIO_PUBLIC_ENDPOINT", "S3_PUBLIC_ENDPOINT", "STORAGE_PUBLIC_ENDPOINT"}, "http://localhost:9002"),
+		MinioBucketName:               getEnvAny([]string{"MINIO_BUCKET_NAME", "S3_BUCKET_NAME", "STORAGE_BUCKET_NAME"}, "exams-bucket"),
+		MinioAccessKey:                getEnvAny([]string{"MINIO_ROOT_USER", "STORAGE_ACCESS_KEY"}, ""),
+		MinioSecretKey:                getEnvAny([]string{"MINIO_ROOT_PASSWORD", "STORAGE_SECRET_KEY"}, ""),
+		MinioRegion:                   getEnvAny([]string{"MINIO_REGION", "AWS_REGION", "STORAGE_REGION"}, "us-east-1"),
 	}
 }
 

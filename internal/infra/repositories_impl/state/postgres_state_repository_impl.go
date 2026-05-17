@@ -53,10 +53,10 @@ func (repository *PostgresStateRepositoryImpl) Create(ctx context.Context, state
 }
 
 func (repository *PostgresStateRepositoryImpl) find(ctx context.Context, query string, arg any) (state.State, bool, error) {
-	var state state.State
-	err := repository.pool.QueryRow(ctx, query, arg).Scan(&state.ID, &state.Code, &state.Name)
-	if domainerrors.Is(err, pgx.ErrNoRows) {
+	var foundState state.State
+	err := repository.pool.QueryRow(ctx, query, arg).Scan(&foundState.ID, &foundState.Code, &foundState.Name)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return state.State{}, false, nil
 	}
-	return state, err == nil, err
+	return foundState, err == nil, err
 }

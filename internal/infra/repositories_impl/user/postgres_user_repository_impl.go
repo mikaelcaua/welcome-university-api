@@ -77,24 +77,24 @@ func (repository *PostgresUserRepositoryImpl) List(ctx context.Context) ([]user.
 }
 
 func (repository *PostgresUserRepositoryImpl) UpdateRole(ctx context.Context, userID int64, role user.Role) (user.User, bool, error) {
-	var user user.User
+	var foundUser user.User
 	err := repository.pool.QueryRow(ctx, `
 		UPDATE app_user
 		SET role = $2, updated_at = now()
 		WHERE id = $1
 		RETURNING id, name, email, password_hash, role, created_at, updated_at
-	`, userID, role).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role, &user.CreatedAt, &user.UpdatedAt)
-	if domainerrors.Is(err, pgx.ErrNoRows) {
+	`, userID, role).Scan(&foundUser.ID, &foundUser.Name, &foundUser.Email, &foundUser.PasswordHash, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return user.User{}, false, nil
 	}
-	return user, err == nil, err
+	return foundUser, err == nil, err
 }
 
 func (repository *PostgresUserRepositoryImpl) find(ctx context.Context, query string, arg any) (user.User, bool, error) {
-	var user user.User
-	err := repository.pool.QueryRow(ctx, query, arg).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role, &user.CreatedAt, &user.UpdatedAt)
-	if domainerrors.Is(err, pgx.ErrNoRows) {
+	var foundUser user.User
+	err := repository.pool.QueryRow(ctx, query, arg).Scan(&foundUser.ID, &foundUser.Name, &foundUser.Email, &foundUser.PasswordHash, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return user.User{}, false, nil
 	}
-	return user, err == nil, err
+	return foundUser, err == nil, err
 }

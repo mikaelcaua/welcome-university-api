@@ -2,9 +2,9 @@ package subjectusecase
 
 import (
 	"context"
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/subject"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/course"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/subject"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/subject"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/erros"
 )
 
@@ -24,16 +24,16 @@ func (useCase *CreateSubjectUseCase) Execute(ctx context.Context, courseID int64
 	if !found {
 		return subject.Subject{}, domainerrors.NotFound("Curso nao encontrado.")
 	}
-	subject, valid := subject.NewSubject(name)
+	createdSubject, valid := subject.NewSubject(name)
 	if !valid {
 		return subject.Subject{}, domainerrors.Validation("Nome da disciplina e obrigatorio.")
 	}
-	exists, err := useCase.subjects.NameExistsInCourse(ctx, subject.Name, courseID)
+	exists, err := useCase.subjects.NameExistsInCourse(ctx, createdSubject.Name, courseID)
 	if err != nil {
 		return subject.Subject{}, err
 	}
 	if exists {
 		return subject.Subject{}, domainerrors.Conflict("Disciplina ja cadastrada neste curso.")
 	}
-	return useCase.subjects.Create(ctx, subject, courseID)
+	return useCase.subjects.Create(ctx, createdSubject, courseID)
 }

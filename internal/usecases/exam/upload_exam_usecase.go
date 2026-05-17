@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/exam"
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/user"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/exam"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/storage"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/subject"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/exam"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/user"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/erros"
 )
 
@@ -58,26 +58,26 @@ func (useCase *UploadExamUseCase) Execute(ctx context.Context, currentUser user.
 	now := time.Now()
 	fileHashPointer := fileHash
 	storageKeyPointer := storedObject.Key
-	exam := exam.Exam{Name: buildExamName(subject, input), ExamYear: input.ExamYear, Semester: input.Semester, Type: input.Type, PDFURL: storedObject.URL, StorageKey: &storageKeyPointer, FileHash: &fileHashPointer, Status: exam.ExamStatusPending, Subject: &subject, UploadedBy: &currentUser}
+	newExam := exam.Exam{Name: buildExamName(subject, input), ExamYear: input.ExamYear, Semester: input.Semester, Type: input.Type, PDFURL: storedObject.URL, StorageKey: &storageKeyPointer, FileHash: &fileHashPointer, Status: exam.ExamStatusPending, Subject: &subject, UploadedBy: &currentUser}
 	if input.PeriodUnidentified {
 		periodLabel := unidentifiedPeriodLabel
-		exam.PeriodLabel = &periodLabel
+		newExam.PeriodLabel = &periodLabel
 	}
 	if currentUser.Role == user.RoleAdmin || currentUser.Role == user.RoleDev {
 		reviewNote := "Aprovacao automatica: upload por ADMIN/DEV."
-		exam.Status = exam.ExamStatusApproved
-		exam.ReviewedBy = &currentUser
-		exam.ReviewedAt = &now
-		exam.ReviewNote = &reviewNote
+		newExam.Status = exam.ExamStatusApproved
+		newExam.ReviewedBy = &currentUser
+		newExam.ReviewedAt = &now
+		newExam.ReviewNote = &reviewNote
 	}
-	createdExam, err := useCase.exams.Create(ctx, exam)
+	createdExam, err := useCase.exams.Create(ctx, newExam)
 	if err != nil {
 		return exam.Exam{}, err
 	}
 	createdExam.Subject = &subject
 	createdExam.UploadedBy = &currentUser
-	createdExam.ReviewedBy = exam.ReviewedBy
-	createdExam.ReviewedAt = exam.ReviewedAt
-	createdExam.ReviewNote = exam.ReviewNote
+	createdExam.ReviewedBy = newExam.ReviewedBy
+	createdExam.ReviewedAt = newExam.ReviewedAt
+	createdExam.ReviewNote = newExam.ReviewNote
 	return createdExam, nil
 }

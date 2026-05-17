@@ -7,10 +7,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/exam"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/exam"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/subject"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/user"
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/exam"
 )
 
 type PostgresExamRepositoryImpl struct{ pool *pgxpool.Pool }
@@ -145,7 +145,7 @@ func baseExamQuery() string {
 }
 
 func scanExam(rows pgx.Rows) (exam.Exam, error) {
-	var exam exam.Exam
+	var scannedExam exam.Exam
 	var subjectID sql.NullInt64
 	var subjectName sql.NullString
 	var uploaderID sql.NullInt64
@@ -167,8 +167,8 @@ func scanExam(rows pgx.Rows) (exam.Exam, error) {
 	var updatedAt time.Time
 
 	err := rows.Scan(
-		&exam.ID, &exam.Name, &exam.ExamYear, &exam.Semester, &periodLabel, &exam.Type, &exam.PDFURL,
-		&storageKey, &fileHash, &exam.Status, &reviewNote, &createdAt, &reviewedAt, &updatedAt,
+		&scannedExam.ID, &scannedExam.Name, &scannedExam.ExamYear, &scannedExam.Semester, &periodLabel, &scannedExam.Type, &scannedExam.PDFURL,
+		&storageKey, &fileHash, &scannedExam.Status, &reviewNote, &createdAt, &reviewedAt, &updatedAt,
 		&subjectID, &subjectName,
 		&uploaderID, &uploaderName, &uploaderEmail, &uploaderRole, &uploaderCreatedAt,
 		&reviewerID, &reviewerName, &reviewerEmail, &reviewerRole, &reviewerCreatedAt,
@@ -177,25 +177,25 @@ func scanExam(rows pgx.Rows) (exam.Exam, error) {
 		return exam.Exam{}, err
 	}
 
-	exam.CreatedAt = createdAt
-	exam.UpdatedAt = updatedAt
-	exam.PeriodLabel = nullStringPointer(periodLabel)
-	exam.StorageKey = nullStringPointer(storageKey)
-	exam.FileHash = nullStringPointer(fileHash)
-	exam.ReviewNote = nullStringPointer(reviewNote)
+	scannedExam.CreatedAt = createdAt
+	scannedExam.UpdatedAt = updatedAt
+	scannedExam.PeriodLabel = nullStringPointer(periodLabel)
+	scannedExam.StorageKey = nullStringPointer(storageKey)
+	scannedExam.FileHash = nullStringPointer(fileHash)
+	scannedExam.ReviewNote = nullStringPointer(reviewNote)
 	if reviewedAt.Valid {
-		exam.ReviewedAt = &reviewedAt.Time
+		scannedExam.ReviewedAt = &reviewedAt.Time
 	}
 	if subjectID.Valid {
-		exam.Subject = &subject.Subject{ID: subjectID.Int64, Name: subjectName.String}
+		scannedExam.Subject = &subject.Subject{ID: subjectID.Int64, Name: subjectName.String}
 	}
 	if uploaderID.Valid {
-		exam.UploadedBy = &user.User{ID: uploaderID.Int64, Name: uploaderName.String, Email: uploaderEmail.String, Role: user.Role(uploaderRole.String), CreatedAt: uploaderCreatedAt.Time}
+		scannedExam.UploadedBy = &user.User{ID: uploaderID.Int64, Name: uploaderName.String, Email: uploaderEmail.String, Role: user.Role(uploaderRole.String), CreatedAt: uploaderCreatedAt.Time}
 	}
 	if reviewerID.Valid {
-		exam.ReviewedBy = &user.User{ID: reviewerID.Int64, Name: reviewerName.String, Email: reviewerEmail.String, Role: user.Role(reviewerRole.String), CreatedAt: reviewerCreatedAt.Time}
+		scannedExam.ReviewedBy = &user.User{ID: reviewerID.Int64, Name: reviewerName.String, Email: reviewerEmail.String, Role: user.Role(reviewerRole.String), CreatedAt: reviewerCreatedAt.Time}
 	}
-	return exam, nil
+	return scannedExam, nil
 }
 
 func nullStringPointer(value sql.NullString) *string {

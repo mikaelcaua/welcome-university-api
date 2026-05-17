@@ -36,10 +36,10 @@ func (repository *PostgresSubjectRepositoryImpl) ListByCourse(ctx context.Contex
 }
 
 func (repository *PostgresSubjectRepositoryImpl) FindTreeByID(ctx context.Context, subjectID int64) (subject.Subject, bool, error) {
-	var subject subject.Subject
-	var course course.Course
-	var university university.University
-	var state state.State
+	var foundSubject subject.Subject
+	var foundCourse course.Course
+	var foundUniversity university.University
+	var foundState state.State
 	err := repository.pool.QueryRow(ctx, `
 		SELECT
 			s.id, s.name,
@@ -52,21 +52,21 @@ func (repository *PostgresSubjectRepositoryImpl) FindTreeByID(ctx context.Contex
 		JOIN state st ON st.id = u.state_id
 		WHERE s.id = $1
 	`, subjectID).Scan(
-		&subject.ID, &subject.Name,
-		&course.ID, &course.Name,
-		&university.ID, &university.Name,
-		&state.ID, &state.Code, &state.Name,
+		&foundSubject.ID, &foundSubject.Name,
+		&foundCourse.ID, &foundCourse.Name,
+		&foundUniversity.ID, &foundUniversity.Name,
+		&foundState.ID, &foundState.Code, &foundState.Name,
 	)
-	if domainerrors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return subject.Subject{}, false, nil
 	}
 	if err != nil {
 		return subject.Subject{}, false, err
 	}
-	university.State = &state
-	course.University = &university
-	subject.Course = &course
-	return subject, true, nil
+	foundUniversity.State = &foundState
+	foundCourse.University = &foundUniversity
+	foundSubject.Course = &foundCourse
+	return foundSubject, true, nil
 }
 
 func (repository *PostgresSubjectRepositoryImpl) NameExistsInCourse(ctx context.Context, name string, courseID int64) (bool, error) {

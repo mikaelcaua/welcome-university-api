@@ -14,9 +14,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/storage"
 	"github.com/mikaelcaua/welcome-university-api/internal/infra/config"
 	"github.com/mikaelcaua/welcome-university-api/internal/infra/httpx"
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/storage"
 )
 
 type MinioStorageRepositoryImpl struct {

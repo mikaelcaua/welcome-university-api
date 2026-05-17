@@ -33,12 +33,12 @@ func (repository *PostgresUniversityRepositoryImpl) ListByState(ctx context.Cont
 }
 
 func (repository *PostgresUniversityRepositoryImpl) FindByID(ctx context.Context, universityID int64) (university.University, bool, error) {
-	var university university.University
-	err := repository.pool.QueryRow(ctx, `SELECT id, name FROM university WHERE id = $1`, universityID).Scan(&university.ID, &university.Name)
-	if domainerrors.Is(err, pgx.ErrNoRows) {
+	var foundUniversity university.University
+	err := repository.pool.QueryRow(ctx, `SELECT id, name FROM university WHERE id = $1`, universityID).Scan(&foundUniversity.ID, &foundUniversity.Name)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return university.University{}, false, nil
 	}
-	return university, err == nil, err
+	return foundUniversity, err == nil, err
 }
 
 func (repository *PostgresUniversityRepositoryImpl) NameExistsInState(ctx context.Context, name string, stateID int64) (bool, error) {

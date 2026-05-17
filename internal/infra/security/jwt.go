@@ -60,25 +60,25 @@ func (service *JWTService) generateToken(user user.User, tokenType string, expir
 func (service *JWTService) extractEmail(tokenText string, expectedTokenType string) (string, error) {
 	token, err := jwt.Parse(tokenText, func(token *jwt.Token) (any, error) {
 		if token.Method != jwt.SigningMethodHS256 {
-			return nil, domainerrors.New("invalid signing method")
+			return nil, errors.New("invalid signing method")
 		}
 		return service.secret, nil
 	})
 	if err != nil || !token.Valid {
-		return "", domainerrors.New("invalid token")
+		return "", errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", domainerrors.New("invalid claims")
+		return "", errors.New("invalid claims")
 	}
 	tokenType, _ := claims["type"].(string)
 	if tokenType != expectedTokenType {
-		return "", domainerrors.New("invalid token type")
+		return "", errors.New("invalid token type")
 	}
 	email, _ := claims["sub"].(string)
 	if email == "" {
-		return "", domainerrors.New("missing email")
+		return "", errors.New("missing email")
 	}
 	return email, nil
 }

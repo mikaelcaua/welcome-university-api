@@ -2,9 +2,9 @@ package courseusecase
 
 import (
 	"context"
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/course"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/course"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/university"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/course"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/erros"
 )
 
@@ -24,16 +24,16 @@ func (useCase *CreateCourseUseCase) Execute(ctx context.Context, universityID in
 	if !found {
 		return course.Course{}, domainerrors.NotFound("Universidade nao encontrada.")
 	}
-	course, valid := course.NewCourse(name)
+	createdCourse, valid := course.NewCourse(name)
 	if !valid {
 		return course.Course{}, domainerrors.Validation("Nome do curso e obrigatorio.")
 	}
-	exists, err := useCase.courses.NameExistsInUniversity(ctx, course.Name, universityID)
+	exists, err := useCase.courses.NameExistsInUniversity(ctx, createdCourse.Name, universityID)
 	if err != nil {
 		return course.Course{}, err
 	}
 	if exists {
 		return course.Course{}, domainerrors.Conflict("Curso ja cadastrado nesta universidade.")
 	}
-	return useCase.courses.Create(ctx, course, universityID)
+	return useCase.courses.Create(ctx, createdCourse, universityID)
 }

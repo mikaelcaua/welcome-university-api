@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/user"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/contracts/user"
+	"github.com/mikaelcaua/welcome-university-api/internal/domain/entities/user"
 	"github.com/mikaelcaua/welcome-university-api/internal/domain/erros"
 )
 
@@ -27,14 +27,14 @@ func NewRegisterUseCase(users usercontract.UserRepositoryContract, tokens TokenS
 	return &RegisterUseCase{users: users, tokens: tokens, accessTokenExpirationSeconds: accessTokenExpirationSeconds}
 }
 func (useCase *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (AuthResult, error) {
-	user := user.User{Name: strings.TrimSpace(input.Name), Email: normalizeEmail(input.Email)}
-	if !user.HasValidIdentity() {
+	newUser := user.User{Name: strings.TrimSpace(input.Name), Email: normalizeEmail(input.Email)}
+	if !newUser.HasValidIdentity() {
 		return AuthResult{}, domainerrors.Validation("Nome e email sao obrigatorios.")
 	}
 	if !passwordMeetsComplexityRequirement(input.Password) {
 		return AuthResult{}, domainerrors.Validation("A senha deve conter pelo menos 1 letra, 1 numero e 1 caractere especial.")
 	}
-	exists, err := useCase.users.EmailExists(ctx, user.Email)
+	exists, err := useCase.users.EmailExists(ctx, newUser.Email)
 	if err != nil {
 		return AuthResult{}, err
 	}
@@ -45,18 +45,18 @@ func (useCase *RegisterUseCase) Execute(ctx context.Context, input RegisterInput
 	if err != nil {
 		return AuthResult{}, err
 	}
-	user.Role = user.RoleUser
+	newUser.Role = user.RoleUser
 	if totalUsers == 0 {
-		user.Role = user.RoleAdmin
+		newUser.Role = user.RoleAdmin
 	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return AuthResult{}, err
 	}
-	user.PasswordHash = string(passwordHash)
-	user, err = useCase.users.Create(ctx, user)
+	newUser.PasswordHash = string(passwordHash)
+	newUser, err = useCase.users.Create(ctx, newUser)
 	if err != nil {
 		return AuthResult{}, err
 	}
-	return buildAuthResult(user, useCase.tokens, useCase.accessTokenExpirationSeconds)
+	return buildAuthResult(newUser, useCase.tokens, useCase.accessTokenExpirationSeconds)
 }
