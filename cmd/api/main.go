@@ -11,7 +11,7 @@ import (
 
 	"github.com/mikaelcaua/welcome-university-api/internal/infra/config"
 	"github.com/mikaelcaua/welcome-university-api/internal/infra/database"
-	"github.com/mikaelcaua/welcome-university-api/internal/infra/routes"
+	"github.com/mikaelcaua/welcome-university-api/internal/infra/bootstrap"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 		log.Fatalf("falha ao migrar banco: %v", err)
 	}
 
-	router, shutdown, err := routes.Create(ctx, appConfig, pool)
+	router, shutdown, err := bootstrap.Create(ctx, appConfig, pool)
 	if err != nil {
 		log.Fatalf("falha ao criar rotas: %v", err)
 	}
